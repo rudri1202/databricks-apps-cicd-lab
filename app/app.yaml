@@ -1,0 +1,15 @@
+# Tells Databricks Apps how to start the container.
+command:
+  - uvicorn
+  - main:app
+  - --host
+  - "0.0.0.0"
+  - --port
+  - "$DATABRICKS_APP_PORT"
+
+env:
+  - name: GREETING
+    value: "Hello from Rudri"
+  # Stretch goal (Lab 1): uncomment after adding the secret resource in databricks.yml
+  - name: DEMO_SECRET
+    valueFrom: demo-secret

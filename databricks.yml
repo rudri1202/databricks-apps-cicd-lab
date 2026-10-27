@@ -1,0 +1,29 @@
+# Bundle: one definition, deployed to dev, qa or prod with `-t <target>`.
+# The workspace host is NOT set here. It comes from DATABRICKS_HOST
+# (a local environment variable, or an environment secret in CI).
+bundle:
+  name: lab-hello-app
+
+variables:
+  app_name_prefix:
+    description: Prefix for the app name; the target is appended.
+    default: lab-hello
+
+resources:
+  apps:
+    hello_app:
+      name: ${var.app_name_prefix}-${bundle.target}
+      description: "Training lab app (${bundle.target})"
+      source_code_path: ./app
+      resources:
+        - name: demo-secret
+          description: Demo secret for the lab
+          secret:
+            scope: lab-secrets
+            key: demo
+            permission: READ
+
+targets:
+  dev:
+    default: true
+  # Lab 3: add the qa and prod targets here.
