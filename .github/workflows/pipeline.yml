@@ -1,0 +1,97 @@
+name: pipeline
+on:
+  pull_request:
+  push:
+    branches: [develop, qa, 'release/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Unit tests
+        run: python -m pytest -q
+
+  deploy-dev:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency: deploy-dev
+    env:
+      TARGET: dev
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Stamp version
+        run: echo "${GITHUB_SHA::7}" > app/version.txt
+      - name: Validate bundle
+        run: databricks bundle validate -t $TARGET
+      - name: Deploy bundle
+        run: databricks bundle deploy -t $TARGET
+      - name: Start app with the new code
+        run: databricks bundle run hello_app -t $TARGET
+      - name: Verify app is running
+        run: databricks apps get lab-hello-$TARGET -o json | jq -e '.app_status.state == "RUNNING"'
+
+  deploy-qa:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa'
+    runs-on: ubuntu-latest
+    environment: qa
+    concurrency: deploy-qa
+    env:
+      TARGET: qa
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Stamp version
+        run: echo "${GITHUB_SHA::7}" > app/version.txt
+      - name: Validate bundle
+        run: databricks bundle validate -t $TARGET
+      - name: Deploy bundle
+        run: databricks bundle deploy -t $TARGET
+      - name: Start app with the new code
+        run: databricks bundle run hello_app -t $TARGET
+      - name: Verify app is running
+        run: databricks apps get lab-hello-$TARGET -o json | jq -e '.app_status.state == "RUNNING"'
+
+  deploy-prod:
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    environment: prod
+    concurrency: deploy-prod
+    env:
+      TARGET: prod
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Stamp version
+        run: echo "${GITHUB_SHA::7}" > app/version.txt
+      - name: Validate bundle
+        run: databricks bundle validate -t $TARGET
+      - name: Deploy bundle
+        run: databricks bundle deploy -t $TARGET
+      - name: Start app with the new code
+        run: databricks bundle run hello_app -t $TARGET
+      - name: Verify app is running
+        run: databricks apps get lab-hello-$TARGET -o json | jq -e '.app_status.state == "RUNNING"'
