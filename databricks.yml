@@ -26,4 +26,5 @@ resources:
 targets:
   dev:
     default: true
-  # Lab 3: add the qa and prod targets here.
+  qa: {}
+  prod: {}
